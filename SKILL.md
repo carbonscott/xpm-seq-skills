@@ -28,7 +28,7 @@ If not installed, tell the user:
 
 > The xpm-seq tools are not on your PATH. Install with:
 > ```
-> pip install -e ~/codes/timing-sequence
+> pip install git+https://github.com/carbonscott/xpm-seq-tools.git
 > ```
 
 Do not proceed until the tools are available.
