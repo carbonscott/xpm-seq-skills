@@ -5,33 +5,39 @@ description: >-
   sequences, calculating beam rates or bucket periods, generating sequence scripts,
   validating sequences, programming XPM engines, working with event codes, or
   deploying via seqprogram.py. Trigger on: XPM, timing sequence, rate calculation,
-  bucket period, sub-harmonic, event code, sequence engine, xpm-ratecalc,
-  xpm-generate, xpm-validate, seqprogram, LCLS-II triggers, beam rate.
+  bucket period, sub-harmonic, event code, sequence engine, xpm-seq, seqprogram,
+  LCLS-II triggers, beam rate.
 argument-hint: "<rates in Hz or natural language request>"
 user-invocable: true
 ---
 
 # XPM Timing Sequence Workflow
 
-Three CLI tools: `xpm-ratecalc`, `xpm-generate`, `xpm-validate`.
+Single-file PEP 723 CLI: `xpm-seq.py` with three subcommands — `ratecalc`,
+`generate`, `validate`. Invoked as `uv run --script xpm-seq.py <subcommand>`.
 Always follow the workflow: **check rates → generate → validate → deploy command**.
 
 ## Step 1: Prerequisites
 
-Verify the tools are installed:
+Verify `xpm-seq.py` is available in the current working directory:
 
 ```bash
-which xpm-ratecalc 2>/dev/null || echo "NOT_INSTALLED"
+test -f xpm-seq.py && echo "OK" || echo "NOT_FOUND"
 ```
 
-If not installed, tell the user:
+If `NOT_FOUND`, tell the user:
 
-> The xpm-seq tools are not on your PATH. Install with:
+> `xpm-seq.py` is not in the current directory. You need to be in the
+> `xpm-seq-tools` repo. Either `cd` into your existing clone, or clone it:
 > ```
-> uv tool install git+https://github.com/carbonscott/xpm-seq-tools.git
+> git clone git@github.com:carbonscott/xpm-seq-tools.git
+> cd xpm-seq-tools
 > ```
+> No install step is needed — `uv` reads the PEP 723 header in `xpm-seq.py`
+> and resolves `numpy` on first run. The first call is slow while the cache
+> warms up; subsequent calls are fast.
 
-Do not proceed until the tools are available.
+Do not proceed until `xpm-seq.py` is present in the working directory.
 
 ## Step 2: Understand the Request
 
@@ -52,7 +58,7 @@ If unclear, ask:
 Always run ratecalc first, always with `--json`:
 
 ```bash
-xpm-ratecalc <rate1_hz> <rate2_hz> ... --json
+uv run --script xpm-seq.py ratecalc <rate1_hz> <rate2_hz> ... --json
 ```
 
 Parse the JSON output and check each rate:
@@ -60,13 +66,14 @@ Parse the JSON output and check each rate:
 - **`exact_subharmonic: true`** and **`error_pct < 1%`** → proceed
 - **`error_pct > 1%`** → warn the user. Show the actual achievable rate and error.
   Ask if they want to proceed or pick a nearby exact sub-harmonic.
-- To show alternatives: `xpm-ratecalc --list --json` or read
-  [references/domain-reference.md](references/domain-reference.md) for the full table
+- To show alternatives: `uv run --script xpm-seq.py ratecalc --list --json` or
+  read [references/domain-reference.md](references/domain-reference.md) for the
+  full table
 
 For period-based requests, use reverse lookup:
 
 ```bash
-xpm-ratecalc --period <p1> <p2> ... --json
+uv run --script xpm-seq.py ratecalc --period <p1> <p2> ... --json
 ```
 
 ## Step 4: Generate Script
@@ -74,7 +81,7 @@ xpm-ratecalc --period <p1> <p2> ... --json
 ### Periodic patterns
 
 ```bash
-xpm-generate periodic --rates <r1> <r2> \
+uv run --script xpm-seq.py generate periodic --rates <r1> <r2> \
   --descriptions "<desc1>" "<desc2>" \
   -o <filename>.py --json
 ```
@@ -89,7 +96,7 @@ Additional flags when needed:
 ### Train/burst patterns
 
 ```bash
-xpm-generate train --train-spacing <N> --bunch-spacing <M> \
+uv run --script xpm-seq.py generate train --train-spacing <N> --bunch-spacing <M> \
   --bunches-per-train <K> --description "<desc>" \
   -o <filename>.py --json
 ```
@@ -110,7 +117,7 @@ Name output files descriptively: `33k_35k.py`, `burst_100x1.py`.
 Always validate after generating:
 
 ```bash
-xpm-validate <filename>.py --engine <N> --json
+uv run --script xpm-seq.py validate <filename>.py --engine <N> --json
 ```
 
 Use `--engine 0` as default if the user hasn't specified an engine yet.
@@ -151,8 +158,9 @@ Remind the user: this must run on S3DF where `seqprogram.py` and EPICS PVA are a
 
 | Problem | Fix |
 |---------|-----|
-| `xpm-ratecalc` returns no results | Check that rates are positive numbers |
-| `xpm-generate` exits with error | Check `--rates`/`--periods` mutual exclusivity; `--descriptions` count must match |
+| `xpm-seq.py: No such file or directory` | You're not in the xpm-seq-tools repo. `cd` into your clone or clone it from `git@github.com:carbonscott/xpm-seq-tools.git` |
+| `ratecalc` returns no results | Check that rates are positive numbers |
+| `generate` exits with error | Check `--rates`/`--periods` mutual exclusivity; `--descriptions` count must match |
 | Instruction count > 2048 | Reduce number of rates, or use `--merge` for periodic |
 | Validation rates don't match ratecalc | Likely a bug — report the discrepancy |
 | Counter conflict warning | Restructure loops to use different counters (max 4) |
