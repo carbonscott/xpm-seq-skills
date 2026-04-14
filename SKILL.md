@@ -13,31 +13,23 @@ user-invocable: true
 
 # XPM Timing Sequence Workflow
 
-Single-file PEP 723 CLI: `xpm-seq.py` with three subcommands — `ratecalc`,
-`generate`, `validate`. Invoked as `uv run --script xpm-seq.py <subcommand>`.
+The `xpm-seq` CLI is a single-file PEP 723 script bundled inside this skill
+with three subcommands — `ratecalc`, `generate`, `validate`. Invoked as
+`xpm-seq <subcommand>`.
 Always follow the workflow: **check rates → generate → validate → deploy command**.
 
-## Step 1: Prerequisites
+## Environment Setup
 
-Verify `xpm-seq.py` is available in the current working directory:
+Source the skill environment before any command:
 
 ```bash
-test -f xpm-seq.py && echo "OK" || echo "NOT_FOUND"
+source <this-skill-dir>/env.sh
 ```
 
-If `NOT_FOUND`, tell the user:
-
-> `xpm-seq.py` is not in the current directory. You need to be in the
-> `xpm-seq-tools` repo. Either `cd` into your existing clone, or clone it:
-> ```
-> git clone git@github.com:carbonscott/xpm-seq-tools.git
-> cd xpm-seq-tools
-> ```
-> No install step is needed — `uv` reads the PEP 723 header in `xpm-seq.py`
-> and resolves `numpy` on first run. The first call is slow while the cache
-> warms up; subsequent calls are fast.
-
-Do not proceed until `xpm-seq.py` is present in the working directory.
+This adds `xpm-seq` to your PATH and configures the uv cache. Requires `uv` on
+your PATH (one prerequisite; `uv` resolves `numpy` automatically on first run
+via the PEP 723 header — the first call cold-caches in ~8 s, subsequent calls
+are fast).
 
 ## Step 2: Understand the Request
 
@@ -58,7 +50,7 @@ If unclear, ask:
 Always run ratecalc first, always with `--json`:
 
 ```bash
-uv run --script xpm-seq.py ratecalc <rate1_hz> <rate2_hz> ... --json
+xpm-seq ratecalc <rate1_hz> <rate2_hz> ... --json
 ```
 
 Parse the JSON output and check each rate:
@@ -66,14 +58,14 @@ Parse the JSON output and check each rate:
 - **`exact_subharmonic: true`** and **`error_pct < 1%`** → proceed
 - **`error_pct > 1%`** → warn the user. Show the actual achievable rate and error.
   Ask if they want to proceed or pick a nearby exact sub-harmonic.
-- To show alternatives: `uv run --script xpm-seq.py ratecalc --list --json` or
+- To show alternatives: `xpm-seq ratecalc --list --json` or
   read [references/domain-reference.md](references/domain-reference.md) for the
   full table
 
 For period-based requests, use reverse lookup:
 
 ```bash
-uv run --script xpm-seq.py ratecalc --period <p1> <p2> ... --json
+xpm-seq ratecalc --period <p1> <p2> ... --json
 ```
 
 ## Step 4: Generate Script
@@ -81,7 +73,7 @@ uv run --script xpm-seq.py ratecalc --period <p1> <p2> ... --json
 ### Periodic patterns
 
 ```bash
-uv run --script xpm-seq.py generate periodic --rates <r1> <r2> \
+xpm-seq generate periodic --rates <r1> <r2> \
   --descriptions "<desc1>" "<desc2>" \
   -o <filename>.py --json
 ```
@@ -96,7 +88,7 @@ Additional flags when needed:
 ### Train/burst patterns
 
 ```bash
-uv run --script xpm-seq.py generate train --train-spacing <N> --bunch-spacing <M> \
+xpm-seq generate train --train-spacing <N> --bunch-spacing <M> \
   --bunches-per-train <K> --description "<desc>" \
   -o <filename>.py --json
 ```
@@ -117,7 +109,7 @@ Name output files descriptively: `33k_35k.py`, `burst_100x1.py`.
 Always validate after generating:
 
 ```bash
-uv run --script xpm-seq.py validate <filename>.py --engine <N> --json
+xpm-seq validate <filename>.py --engine <N> --json
 ```
 
 Use `--engine 0` as default if the user hasn't specified an engine yet.
@@ -158,7 +150,7 @@ Remind the user: this must run on S3DF where `seqprogram.py` and EPICS PVA are a
 
 | Problem | Fix |
 |---------|-----|
-| `xpm-seq.py: No such file or directory` | You're not in the xpm-seq-tools repo. `cd` into your clone or clone it from `git@github.com:carbonscott/xpm-seq-tools.git` |
+| `xpm-seq: command not found` | Re-source `env.sh` (Environment Setup section) or confirm `bin/` is on `PATH` |
 | `ratecalc` returns no results | Check that rates are positive numbers |
 | `generate` exits with error | Check `--rates`/`--periods` mutual exclusivity; `--descriptions` count must match |
 | Instruction count > 2048 | Reduce number of rates, or use `--merge` for periodic |
