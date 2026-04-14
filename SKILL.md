@@ -7,8 +7,6 @@ description: >-
   deploying via seqprogram.py. Trigger on: XPM, timing sequence, rate calculation,
   bucket period, sub-harmonic, event code, sequence engine, xpm-seq, seqprogram,
   LCLS-II triggers, beam rate.
-argument-hint: "<rates in Hz or natural language request>"
-user-invocable: true
 ---
 
 # XPM Timing Sequence Workflow
